@@ -13,7 +13,7 @@ class MammothHasher
     # algorithm parameters
     # WARNING: if you change them, the resulting hash will be different !
     number_of_chunks = 100
-    length_of_chunks = 100
+    length_of_chunks = 4
 
     # we get the file size (in bytes), used as PRNG (Pseudo Random Number Generator)
     filesize = File.size filename
@@ -22,18 +22,22 @@ class MammothHasher
     # the MD5 of the whole file than to apply our custom algorithm
     if filesize <= number_of_chunks*length_of_chunks
       file = File.open(filename, 'r')
-      final_hash = Digest::MD5.file(file).hexdigest
+      hash = Digest::MD5.file(file).hexdigest
       file.close
       puts (Time.now - time_start).to_s + " seconds" if debug
-      return final_hash
+      return hash
     end
 
     # we initialize the PRNG
     prng = Random.new filesize
 
-    # we get 1000 numbers between 0 and filesize-size_of_chunk
-    offsets = []
-    for i in 0..number_of_chunks
+    # we always get a chunk at the offset 0 (beginning of file)
+    # because that's where the magic number indicating the file type is
+    # so making sure that it's still the same may prevent from some attacks
+    offsets = [0]
+
+    # we get 99 other offsets between 0 and (filesize - length_of_chunk)
+    for i in 1..(number_of_chunks-1)
       offsets << prng.rand(filesize - length_of_chunks)
     end
 
@@ -41,24 +45,17 @@ class MammothHasher
     # (in order to optimize the way the file will be read (in only one direction))
     offsets.sort
 
-    # we compute the hashes of several parts of the file
-    hashes = ""
-    # first, we compute the hash of the first bytes of the file,
-    # because that's where the magic number indicating the file type is
-    # so making sure that it's still the same may be safer
-    hashes << Digest::MD5.new.hexdigest(File.read(filename, 100))
-    # for each offset, we compute the hash of the following bytes
-    # and we concatenate these hashes
+    # we concatenate all the bytes from all the chunks at the offset we choose
+    bytes = ""
     for offset in offsets
-      hashes += Digest::MD5.new.hexdigest(File.read(filename, length_of_chunks, offset))
+      bytes = "#{bytes}#{File.read(filename, length_of_chunks, offset)}"
     end
 
-    # we compute the final hash, which is the hash of the concatenation
-    # of the previous hashes
-    final_hash = Digest::MD5.new.hexdigest hashes
+    # we compute the final hash, which is the hash of the concatenation of all chunks
+    hash = Digest::MD5.new.hexdigest bytes
 
     puts (Time.now - time_start).to_s + " seconds" if debug
 
-    return final_hash
+    return hash
   end
 end
