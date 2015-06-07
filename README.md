@@ -1,4 +1,4 @@
-mammoth-hasher
+mammoth-hasher [![Build Status](https://travis-ci.org/vmarquet/ruby-mammoth-hasher.svg?branch=master)](https://travis-ci.org/vmarquet/ruby-mammoth-hasher)
 ==============
 
 Description
